@@ -1,100 +1,93 @@
 import streamlit as st
 import pandas as pd
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.preprocessing import OneHotEncoder
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
-from sklearn.metrics import accuracy_score, roc_auc_score, classification_report
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.neural_network import MLPClassifier
-import xgboost as xgb
+from xgboost import XGBClassifier
+from sklearn.metrics import classification_report, accuracy_score, roc_auc_score
 
-st.set_page_config(page_title="Model Training", layout="wide")
-st.title("모델 학습 (Model Training)")
+st.title("🤖 모델 학습 (Model Training)")
 
-# ------------------------
-# 1. Check preprocessed data
-# ------------------------
-if "clean_data" not in st.session_state:
-    st.error("전처리 단계의 데이터가 없습니다. Preprocessing 페이지에서 먼저 진행하세요.")
+if "clean_data" not in st.session_state or "selected_features" not in st.session_state:
+    st.error("전처리 및 Feature 선택을 먼저 진행하세요.")
     st.stop()
 
-df = st.session_state["clean_data"].copy()
-
-if "selected_features" not in st.session_state:
-    st.error("선택된 Feature가 없습니다. Feature Selection 페이지에서 먼저 선택하세요.")
-    st.stop()
-
+df = st.session_state["clean_data"]
 features = st.session_state["selected_features"]
-st.write("### 사용된 특성")
-st.json(features)
 
-# ------------------------
-# 2. Train-test split
-# ------------------------
 X = df[features]
 y = df["target"]
 
-test_size = st.slider("테스트 데이터 비율", 0.1, 0.5, 0.3)
+cat_cols = [c for c in X.columns if X[c].dtype.name == 'category']
+num_cols = [c for c in X.columns if X[c].dtype.name != 'category']
 
-# detect categorical columns
-cat_cols = [c for c in X.columns if X[c].dtype == "object"]
-num_cols = [c for c in X.columns if c not in cat_cols]
-
-# preprocessing
 preprocessor = ColumnTransformer(
     transformers=[
-        ("num", StandardScaler(), num_cols),
-        ("cat", OneHotEncoder(handle_unknown="ignore", sparse_output=False), cat_cols),
+        ("num","passthrough",num_cols),
+        ("cat",OneHotEncoder(handle_unknown='ignore'),cat_cols)
     ]
 )
 
-# ------------------------
-# 3. Model selection
-# ------------------------
-st.write("### 학습할 모델 선택")
+model_option = st.selectbox("모델 선택", ["Logistic Regression","RandomForest","XGBoost"])
 
-model_choice = st.selectbox(
-    "모델을 선택하세요.",
-    ["Logistic Regression", "RandomForest", "XGBoost", "MLP Neural Network"]
+if model_option == "Logistic Regression":
+    clf = Pipeline([
+        ("prep", preprocessor),
+        ("model", LogisticRegression(max_iter=500,class_weight="balanced"))
+    ])
+elif model_option == "RandomForest":
+    clf = Pipeline([
+        ("prep", preprocessor),
+        ("model", RandomForestClassifier(n_estimators=300,class_weight="balanced"))
+    ])
+else:
+    clf = Pipeline([
+        ("prep", preprocessor),
+        ("model", XGBClassifier(
+            n_estimators=300,learning_rate=0.05,max_depth=6,
+            eval_metric='auc'
+        ))
+    ])
+
+test_size = st.slider("테스트 데이터 비율",0.1,0.5,0.3)
+
+X_train,X_test,y_train,y_test = train_test_split(
+    X,y,test_size=test_size,stratify=y,random_state=42
 )
 
-if model_choice == "Logistic Regression":
-    model = LogisticRegression(max_iter=1000)
-elif model_choice == "RandomForest":
-    model = RandomForestClassifier(n_estimators=300)
-elif model_choice == "XGBoost":
-    model = xgb.XGBClassifier(eval_metric="logloss")
-elif model_choice == "MLP Neural Network":
-    model = MLPClassifier(hidden_layer_sizes=(64,32), max_iter=300)
-
-# Full pipeline
-clf = Pipeline(steps=[("preprocess", preprocessor),
-                     ("model", model)])
-
-# ------------------------
-# 4. Train model
-# ------------------------
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=test_size, random_state=42, stratify=y
-)
-
-clf.fit(X_train, y_train)
+clf.fit(X_train,y_train)
 pred = clf.predict(X_test)
 prob = clf.predict_proba(X_test)[:,1]
 
-# ------------------------
-# 5. Show evaluation
-# ------------------------
-st.write("### 예측 결과 미리보기")
-st.dataframe(pd.DataFrame({"y_test": y_test.values, "y_pred": pred}).head())
+# 등급화 함수
+def credit_grade(p):
+    if p>=0.8: return "1등급"
+    if p>=0.6: return "2등급"
+    if p>=0.4: return "3등급"
+    if p>=0.2: return "4등급"
+    return "5등급"
 
-st.write("### Accuracy:", accuracy_score(y_test, pred))
-st.write("### ROC-AUC:", roc_auc_score(y_test, prob))
+grades = [credit_grade(p) for p in prob]
 
-st.write("### Classification Report")
-st.text(classification_report(y_test, pred))
+st.subheader("📌 예측 결과")
+result_df = pd.DataFrame({
+    "y_test":y_test,
+    "probability":prob,
+    "grade":grades
+})
 
-# Save model to session_state
+st.dataframe(result_df.head())
+
+st.write("Accuracy:", accuracy_score(y_test,pred))
+st.write("ROC-AUC:", roc_auc_score(y_test,prob))
+
+st.subheader("Classification Report")
+st.text(classification_report(y_test,pred))
+
 st.session_state["trained_model"] = clf
+st.session_state["result_df"] = result_df
+
+st.success("모델 학습 완료!")
