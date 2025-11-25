@@ -1,17 +1,18 @@
 import streamlit as st
 import pandas as pd
 
+# 페이지 기본 설정
 st.set_page_config(page_title="Upload Data", layout="wide")
 
-st.title("📁 데이터 업로드 (Upload Data)")
+st.title("데이터 업로드 (Upload Data)")
 
 st.markdown(
     """
-    Lending Club 원본 CSV 데이터를 업로드하는 페이지입니다.
+Lending Club 원본 CSV 데이터를 업로드하는 페이지입니다.
 
-    업로드된 데이터는 **세션 상태(Session State)** 에 저장되며  
-    이후 페이지(전처리, 특성 선택, 모델 학습 등)에서 자동으로 사용됩니다.
-    """
+업로드된 데이터는 세션 상태(Session State)에 저장되며  
+이후 페이지(전처리, 특성 선택, 모델 학습 등)에서 자동으로 사용됩니다.
+"""
 )
 
 uploaded_file = st.file_uploader("CSV 파일 업로드", type=["csv"])
@@ -22,8 +23,10 @@ if "raw_data" not in st.session_state:
 
 if uploaded_file is not None:
     try:
-        # 🚀 가장 안전하고 빠른 CSV 로딩 방식
+        # 가장 안정적인 CSV 로딩 방식
         df = pd.read_csv(uploaded_file, low_memory=False)
+
+        # 저장
         st.session_state["raw_data"] = df
 
         st.success("데이터가 성공적으로 업로드되었습니다.")
