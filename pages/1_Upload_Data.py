@@ -9,7 +9,7 @@ st.markdown(
     """
     Lending Club 원본 CSV 데이터를 업로드하는 페이지입니다.
 
-    업로드된 데이터는 **세션 상태(Session State)** 에 저장되며  
+    업로드된 데이터는 세션 상태(Session State)에 저장되며  
     이후 페이지(전처리, 특징 선택, 모델 학습 등)에서 자동으로 사용됩니다.
     """
 )
@@ -21,10 +21,10 @@ if "raw_data" not in st.session_state:
 
 if uploaded_file is not None:
     try:
-        # Lending Club CSV의 첫 행은 설명문이므로 skiprows=1 적용
-        df = pd.read_csv(uploaded_file, low_memory=False, skiprows=1)
+        # 🚫 skiprows 절대 사용하지 않음
+        df = pd.read_csv(uploaded_file, low_memory=False)
     except:
-        df = pd.read_csv(uploaded_file, low_memory=False)  # fallback
+        df = pd.read_csv(uploaded_file)
 
     st.session_state["raw_data"] = df
 
@@ -34,8 +34,4 @@ if uploaded_file is not None:
 
 else:
     st.info("CSV 파일을 업로드해 주세요.")
-if st.button("🔄 세션 초기화 (Reset Session)"):
-    for key in st.session_state.keys():
-        st.session_state[key] = None
-    st.success("세션이 초기화되었습니다. 다시 데이터를 업로드하세요.")
-    st.stop()
+
