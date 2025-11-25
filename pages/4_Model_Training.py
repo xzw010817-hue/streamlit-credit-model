@@ -107,3 +107,26 @@ st.dataframe(result_df.head())
 # 평가 지표
 st.write("Accuracy:", accuracy_score(y_test, pred))
 st.write("ROC-AUC:", roc_auc_score(y_test, prob))
+# -----------------------
+# 이탈율 계산
+# -----------------------
+
+# 실제 이탈율 (실제 y_test 기준)
+true_churn_rate = y_test.mean()
+
+# 모델 예측 이탈율 (예측 확률 기준)
+pred_churn_rate = (prob >= 0.5).mean()
+
+# 등급별 이탈율 계산
+grade_churn_rate = (
+    pd.DataFrame({"grade": grades, "y_test": y_test})
+    .groupby("grade")["y_test"]
+    .mean()
+)
+
+st.subheader("이탈율(Default / Churn Rate)")
+st.write(f"전체 실제 이탈율: {true_churn_rate:.4f}")
+st.write(f"모델 예측 이탈율(0.5 기준): {pred_churn_rate:.4f}")
+
+st.write("등급별 이탈율:")
+st.dataframe(grade_churn_rate)
