@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 
-st.title("🧹 전처리 (Preprocessing)")
+st.title(" 전처리 (Preprocessing)")
 
 if "raw_data" not in st.session_state:
     st.error("먼저 데이터를 업로드하세요!")
@@ -9,7 +9,7 @@ if "raw_data" not in st.session_state:
 
 df = st.session_state["raw_data"].copy()
 
-st.subheader("📌 1. 원본 데이터 미리보기")
+st.subheader(" 1. 원본 데이터 미리보기")
 st.dataframe(df.head())
 
 # ---------------------------
@@ -54,7 +54,7 @@ important_cols = [
 
 df = df[[c for c in important_cols if c in df.columns] + ['target']]
 
-st.subheader("📌 2. 전처리 후 데이터")
+st.subheader(" 2. 전처리 후 데이터")
 st.dataframe(df.head())
 
 st.session_state["clean_data"] = df
