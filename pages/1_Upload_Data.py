@@ -34,3 +34,8 @@ if uploaded_file is not None:
 
 else:
     st.info("CSV 파일을 업로드해 주세요.")
+if st.button("🔄 세션 초기화 (Reset Session)"):
+    for key in st.session_state.keys():
+        st.session_state[key] = None
+    st.success("세션이 초기화되었습니다. 다시 데이터를 업로드하세요.")
+    st.stop()
