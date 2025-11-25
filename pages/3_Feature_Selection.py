@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 
-st.title("🎯 Feature Selection")
+st.title(" Feature Selection")
 
 if "clean_data" not in st.session_state:
     st.error("먼저 전처리를 완료하세요.")
