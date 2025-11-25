@@ -14,24 +14,23 @@ st.markdown(
     """
 )
 
-# 파일 업로드
 uploaded_file = st.file_uploader("CSV 파일 업로드", type=["csv"])
 
-# 세션 상태 초기화
 if "raw_data" not in st.session_state:
     st.session_state["raw_data"] = None
 
-# 파일 처리
 if uploaded_file is not None:
-    df = pd.read_csv(uploaded_file)
+    try:
+        # Lending Club CSV의 첫 행은 설명문이므로 skiprows=1 적용
+        df = pd.read_csv(uploaded_file, low_memory=False, skiprows=1)
+    except:
+        df = pd.read_csv(uploaded_file, low_memory=False)  # fallback
+
     st.session_state["raw_data"] = df
 
     st.success("데이터가 성공적으로 업로드되었습니다.")
-
-    st.subheader("데이터 미리보기")
     st.dataframe(df.head())
-
-    st.write(f"총 행 수: {df.shape[0]},  총 열 수: {df.shape[1]}")
+    st.write(f"총 행 수: {df.shape[0]}, 총 열 수: {df.shape[1]}")
 
 else:
     st.info("CSV 파일을 업로드해 주세요.")
