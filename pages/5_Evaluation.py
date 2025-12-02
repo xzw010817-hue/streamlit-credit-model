@@ -153,38 +153,35 @@ for name, clf in models.items():
     st.pyplot(fig_cm)
 
 # ---------------------------------------------
-# Feature Importance (RandomForest)
+# RandomForest Feature Importance
 # ---------------------------------------------
 st.subheader("Feature Importance (RandomForest)")
 
-# ① 전처리와 모델을 분리하여 다시 학습 (오류 방지)
-ohe_encoder = OneHotEncoder(handle_unknown="ignore")
+# Model Training에서 학습된 모델 가져오기
+if "trained_model_dict" not in st.session_state:
+    st.error("모델 학습을 먼저 진행하십시오.")
+    st.stop()
 
-preprocessor_fit = ColumnTransformer(
-    transformers=[
-        ("num", "passthrough", num_cols),
-        ("cat", ohe_encoder, cat_cols)
-    ]
-)
+# 이미 학습된 RandomForest 모델 가져오기
+rf_pipeline = st.session_state["trained_model_dict"]["RandomForest"]
+rf_model = rf_pipeline.named_steps["model"]
 
-# ② fit_transform 수행 → 모든 feature 생성 완료
-X_train_trans = preprocessor_fit.fit_transform(X_train)
+# OneHotEncoder (category용)
+preprocess = rf_pipeline.named_steps["preprocess"]
+ohe_encoder = preprocess.named_transformers_["cat"]
 
-# ③ RandomForest만 다시 학습 (preprocess 포함하지 않음)
-rf = RandomForestClassifier(n_estimators=300, class_weight="balanced")
-rf.fit(X_train_trans, y_train)
-
-# ④ OneHotEncoder에서 실제 컬럼명 가져오기
+# feature 이름 생성
 cat_feature_names = list(ohe_encoder.get_feature_names_out(cat_cols))
 feature_names = num_cols + cat_feature_names
 
-# ⑤ 중요도 테이블 생성
+# 중요도 추출
 importance_df = pd.DataFrame({
     "feature": feature_names,
-    "importance": rf.feature_importances_
+    "importance": rf_model.feature_importances_
 }).sort_values("importance", ascending=False)
 
-# ⑥ 중요도 그래프 출력
-fig_imp, ax_imp = plt.subplots()
+# 상위 15개 표시
+fig_imp, ax_imp = plt.subplots(figsize=(8, 6))
 sns.barplot(data=importance_df.head(15), x="importance", y="feature", ax=ax_imp)
+ax_imp.set_title("RandomForest Feature Importance")
 st.pyplot(fig_imp)
