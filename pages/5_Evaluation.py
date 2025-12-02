@@ -2,89 +2,37 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.metrics import accuracy_score, roc_auc_score, confusion_matrix, roc_curve
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import OneHotEncoder
-from sklearn.compose import ColumnTransformer
-from sklearn.pipeline import Pipeline
-from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import RandomForestClassifier, StackingClassifier
+from sklearn.metrics import confusion_matrix, roc_curve, accuracy_score, roc_auc_score
 
 st.title("모델 평가 (Evaluation)")
 
-# ---------------------------------------------
-# 필수 데이터 확인
-# ---------------------------------------------
-if "clean_data" not in st.session_state or "selected_features" not in st.session_state:
-    st.error("전처리와 Feature 선택을 먼저 진행하십시오.")
-    st.stop()
+# ------------------------------------------------
+# 1. 训练是否完成？
+# ------------------------------------------------
+required_keys = [
+    "trained_models", "trained_model_single",
+    "result_df", "X_train", "X_test", "y_train", "y_test"
+]
 
-df = st.session_state["clean_data"]
-features = st.session_state["selected_features"]
+for key in required_keys:
+    if key not in st.session_state:
+        st.error("Model Training을 먼저 진행하십시오.")
+        st.stop()
 
-X = df[features]
-y = df["target"]
+models = st.session_state["trained_models"]
+X_test = st.session_state["X_test"]
+y_test = st.session_state["y_test"]
 
-# ---------------------------------------------
-# 컬럼 분리
-# ---------------------------------------------
-cat_cols = [col for col in X.columns if X[col].dtype == "category"]
-num_cols = [col for col in X.columns if X[col].dtype != "category"]
+# ------------------------------------------------
+# 2. 多模型性能比较
+# ------------------------------------------------
+st.subheader("모델 성능 비교")
 
-preprocessor = ColumnTransformer(
-    transformers=[
-        ("num", "passthrough", num_cols),
-        ("cat", OneHotEncoder(handle_unknown="ignore"), cat_cols)
-    ]
-)
-
-# ---------------------------------------------
-# Train Test Split
-# ---------------------------------------------
-test_size = 0.3
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=test_size, stratify=y, random_state=42
-)
-
-# ---------------------------------------------
-# 세 가지 모델 정의
-# ---------------------------------------------
-model_lr = Pipeline([
-    ("preprocess", preprocessor),
-    ("model", LogisticRegression(max_iter=500, class_weight="balanced"))
-])
-
-model_rf = Pipeline([
-    ("preprocess", preprocessor),
-    ("model", RandomForestClassifier(n_estimators=300, class_weight="balanced"))
-])
-
-model_stacking = Pipeline([
-    ("preprocess", preprocessor),
-    ("model", StackingClassifier(
-        estimators=[
-            ("lr", LogisticRegression(max_iter=500, class_weight="balanced")),
-            ("rf", RandomForestClassifier(n_estimators=300, class_weight="balanced"))
-        ],
-        final_estimator=LogisticRegression(max_iter=500),
-        stack_method="predict_proba"
-    ))
-])
-
-models = {
-    "Logistic Regression": model_lr,
-    "RandomForest": model_rf,
-    "Hybrid Stacking": model_stacking
-}
-
-# ---------------------------------------------
-# 모델 학습 및 성능 저장
-# ---------------------------------------------
 results = []
+
 pred_probs = {}
 
 for name, clf in models.items():
-    clf.fit(X_train, y_train)
     pred = clf.predict(X_test)
     prob = clf.predict_proba(X_test)[:, 1]
 
@@ -95,37 +43,31 @@ for name, clf in models.items():
     pred_probs[name] = prob
 
 results_df = pd.DataFrame(results, columns=["Model", "Accuracy", "AUC"])
-
-# ---------------------------------------------
-# 성능 비교 표
-# ---------------------------------------------
-st.subheader("모델 성능 비교")
 st.dataframe(results_df)
 
-# ---------------------------------------------
-# Accuracy Chart
-# ---------------------------------------------
+# ------------------------------
+# Accuracy Bar Chart
+# ------------------------------
 st.subheader("Accuracy 비교")
 fig_acc, ax_acc = plt.subplots()
 sns.barplot(data=results_df, x="Model", y="Accuracy", ax=ax_acc)
-ax_acc.set_ylim(0, 1)
+plt.ylim(0, 1)
 st.pyplot(fig_acc)
 
-# ---------------------------------------------
-# AUC Chart
-# ---------------------------------------------
-st.subheader("ROC-AUC 비교")
+# ------------------------------
+# AUC Bar Chart
+# ------------------------------
+st.subheader("AUC 비교")
 fig_auc, ax_auc = plt.subplots()
 sns.barplot(data=results_df, x="Model", y="AUC", ax=ax_auc)
-ax_auc.set_ylim(0, 1)
+plt.ylim(0, 1)
 st.pyplot(fig_auc)
 
-# ---------------------------------------------
+# ------------------------------
 # ROC Curve
-# ---------------------------------------------
+# ------------------------------
 st.subheader("ROC Curve")
 fig_roc, ax_roc = plt.subplots()
-
 for name, prob in pred_probs.items():
     fpr, tpr, _ = roc_curve(y_test, prob)
     ax_roc.plot(fpr, tpr, label=name)
@@ -135,53 +77,42 @@ ax_roc.set_ylabel("TPR")
 ax_roc.legend()
 st.pyplot(fig_roc)
 
-# ---------------------------------------------
+# ------------------------------
 # Confusion Matrix
-# ---------------------------------------------
+# ------------------------------
 st.subheader("Confusion Matrix")
-
 for name, clf in models.items():
     pred = clf.predict(X_test)
     cm = confusion_matrix(y_test, pred)
 
     st.write(f"모델: {name}")
-
     fig_cm, ax_cm = plt.subplots()
     sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", ax=ax_cm)
-    ax_cm.set_xlabel("예측값")
-    ax_cm.set_ylabel("실제값")
     st.pyplot(fig_cm)
 
-# ---------------------------------------------
-# RandomForest Feature Importance
-# ---------------------------------------------
+# ------------------------------
+# Feature Importance (RF)
+# ------------------------------
 st.subheader("Feature Importance (RandomForest)")
 
-# Model Training에서 학습된 모델 가져오기
-if "trained_model_dict" not in st.session_state:
-    st.error("모델 학습을 먼저 진행하십시오.")
-    st.stop()
+rf_model = models["RandomForest"]
 
-# 이미 학습된 RandomForest 모델 가져오기
-rf_pipeline = st.session_state["trained_model_dict"]["RandomForest"]
-rf_model = rf_pipeline.named_steps["model"]
+# 预处理器
+pre = rf_model.named_steps["preprocess"]
+rf = rf_model.named_steps["model"]
 
-# OneHotEncoder (category용)
-preprocess = rf_pipeline.named_steps["preprocess"]
-ohe_encoder = preprocess.named_transformers_["cat"]
+# 生成特征名称
+ohe = pre.named_transformers_["cat"]
+cat_feature_names = list(ohe.get_feature_names_out(pre.transformers_[1][2]))
+num_feature_names = pre.transformers_[0][2]
+feature_names = num_feature_names + cat_feature_names
 
-# feature 이름 생성
-cat_feature_names = list(ohe_encoder.get_feature_names_out(cat_cols))
-feature_names = num_cols + cat_feature_names
-
-# 중요도 추출
 importance_df = pd.DataFrame({
     "feature": feature_names,
-    "importance": rf_model.feature_importances_
+    "importance": rf.feature_importances_
 }).sort_values("importance", ascending=False)
 
-# 상위 15개 표시
-fig_imp, ax_imp = plt.subplots(figsize=(8, 6))
-sns.barplot(data=importance_df.head(15), x="importance", y="feature", ax=ax_imp)
-ax_imp.set_title("RandomForest Feature Importance")
+fig_imp, ax_imp = plt.subplots()
+sns.barplot(data=importance_df.head(15),
+            x="importance", y="feature", ax=ax_imp)
 st.pyplot(fig_imp)
