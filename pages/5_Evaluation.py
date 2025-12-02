@@ -9,7 +9,6 @@ from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier, StackingClassifier
-from xgboost import XGBClassifier
 
 st.title("모델 평가 (Evaluation)")
 
@@ -40,7 +39,7 @@ preprocessor = ColumnTransformer(
 )
 
 # ---------------------------------------------
-# Train / Test Split
+# Train Test Split
 # ---------------------------------------------
 test_size = 0.3
 X_train, X_test, y_train, y_test = train_test_split(
@@ -48,35 +47,29 @@ X_train, X_test, y_train, y_test = train_test_split(
 )
 
 # ---------------------------------------------
-# 모델 정의
+# 세 가지 모델 정의
 # ---------------------------------------------
-model_lr = Pipeline(
-    steps=[
-        ("preprocess", preprocessor),
-        ("model", LogisticRegression(max_iter=500, class_weight="balanced"))
-    ]
-)
+model_lr = Pipeline([
+    ("preprocess", preprocessor),
+    ("model", LogisticRegression(max_iter=500, class_weight="balanced"))
+])
 
-model_rf = Pipeline(
-    steps=[
-        ("preprocess", preprocessor),
-        ("model", RandomForestClassifier(n_estimators=300, class_weight="balanced"))
-    ]
-)
+model_rf = Pipeline([
+    ("preprocess", preprocessor),
+    ("model", RandomForestClassifier(n_estimators=300, class_weight="balanced"))
+])
 
-model_stacking = Pipeline(
-    steps=[
-        ("preprocess", preprocessor),
-        ("model", StackingClassifier(
-            estimators=[
-                ("lr", LogisticRegression(max_iter=500, class_weight="balanced")),
-                ("rf", RandomForestClassifier(n_estimators=300, class_weight="balanced"))
-            ],
-            final_estimator=LogisticRegression(max_iter=500),
-            stack_method="predict_proba"
-        ))
-    ]
-)
+model_stacking = Pipeline([
+    ("preprocess", preprocessor),
+    ("model", StackingClassifier(
+        estimators=[
+            ("lr", LogisticRegression(max_iter=500, class_weight="balanced")),
+            ("rf", RandomForestClassifier(n_estimators=300, class_weight="balanced"))
+        ],
+        final_estimator=LogisticRegression(max_iter=500),
+        stack_method="predict_proba"
+    ))
+])
 
 models = {
     "Logistic Regression": model_lr,
@@ -85,7 +78,7 @@ models = {
 }
 
 # ---------------------------------------------
-# 모델 학습 및 결과 저장
+# 모델 학습 및 성능 저장
 # ---------------------------------------------
 results = []
 pred_probs = {}
@@ -110,28 +103,27 @@ st.subheader("모델 성능 비교")
 st.dataframe(results_df)
 
 # ---------------------------------------------
-# Accuracy Bar Chart
+# Accuracy Chart
 # ---------------------------------------------
 st.subheader("Accuracy 비교")
 fig_acc, ax_acc = plt.subplots()
 sns.barplot(data=results_df, x="Model", y="Accuracy", ax=ax_acc)
-plt.ylim(0, 1)
+ax_acc.set_ylim(0, 1)
 st.pyplot(fig_acc)
 
 # ---------------------------------------------
-# AUC Bar Chart
+# AUC Chart
 # ---------------------------------------------
 st.subheader("ROC-AUC 비교")
 fig_auc, ax_auc = plt.subplots()
-sns.barplot(data=results_df, x="Model", y="AUC", ax_auc)
-plt.ylim(0, 1)
+sns.barplot(data=results_df, x="Model", y="AUC", ax=ax_auc)
+ax_auc.set_ylim(0, 1)
 st.pyplot(fig_auc)
 
 # ---------------------------------------------
-# ROC Curve (세 모델)
+# ROC Curve
 # ---------------------------------------------
 st.subheader("ROC Curve")
-
 fig_roc, ax_roc = plt.subplots()
 
 for name, prob in pred_probs.items():
@@ -141,11 +133,10 @@ for name, prob in pred_probs.items():
 ax_roc.set_xlabel("FPR")
 ax_roc.set_ylabel("TPR")
 ax_roc.legend()
-
 st.pyplot(fig_roc)
 
 # ---------------------------------------------
-# Confusion Matrix (모델별)
+# Confusion Matrix
 # ---------------------------------------------
 st.subheader("Confusion Matrix")
 
@@ -180,12 +171,7 @@ if hasattr(rf, "feature_importances_"):
     }).sort_values("importance", ascending=False)
 
     fig_imp, ax_imp = plt.subplots()
-    sns.barplot(
-        data=importance_df.head(15),
-        x="importance",
-        y="feature",
-        ax=ax_imp
-    )
+    sns.barplot(data=importance_df.head(15), x="importance", y="feature", ax=ax_imp)
     st.pyplot(fig_imp)
 
 st.success("모델 평가가 완료되었습니다.")
