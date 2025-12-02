@@ -93,7 +93,7 @@ pred = clf.predict(X_test)
 prob = clf.predict_proba(X_test)[:, 1]
 
 # ------------------------------------
-# 등급 변환
+# 등급 변환 함수
 # ------------------------------------
 def credit_grade(p):
     if p >= 0.8: return "1등급"
@@ -105,7 +105,7 @@ def credit_grade(p):
 grades = [credit_grade(p) for p in prob]
 
 # ------------------------------------
-# 결과 출력
+# 예측 결과 출력
 # ------------------------------------
 st.subheader("예측 결과")
 result_df = pd.DataFrame({
@@ -115,21 +115,25 @@ result_df = pd.DataFrame({
 })
 st.dataframe(result_df.head())
 
+# Accuracy / AUC
 acc = accuracy_score(y_test, pred)
 auc = roc_auc_score(y_test, prob)
 
 st.write("Accuracy:", acc)
 st.write("ROC-AUC:", auc)
 
+# Classification Report
 st.subheader("Classification Report")
 st.text(classification_report(y_test, pred))
 
+# Confusion Matrix
 st.subheader("Confusion Matrix")
 cm = confusion_matrix(y_test, pred)
 fig, ax = plt.subplots()
 sns.heatmap(cm, annot=True, fmt="d", cmap="Blues")
 st.pyplot(fig)
 
+# ROC Curve
 st.subheader("ROC Curve")
 fpr, tpr, _ = roc_curve(y_test, prob)
 fig2, ax2 = plt.subplots()
@@ -141,9 +145,15 @@ st.pyplot(fig2)
 # ------------------------------------
 # ⭐ Evaluation 에 필요한 정보 저장 ⭐
 # ------------------------------------
-st.session_state["trained_models"] = models        # 3개 모델 모두 저장
-st.session_state["trained_model_single"] = clf     # 단일 선택 모델
-st.session_state["result_df"] = result_df          # 예측결과 저장
+# 세 모델 모두 다시 학습 후 저장 (Evaluation 페이지용)
+trained_models = {}
+
+for name, model in models.items():
+    trained_models[name] = model.fit(X_train, y_train)
+
+st.session_state["trained_models"] = trained_models    # 세 모델 저장
+st.session_state["trained_model_single"] = clf         # 선택된 모델 저장
+st.session_state["result_df"] = result_df
 st.session_state["X_train"] = X_train
 st.session_state["X_test"] = X_test
 st.session_state["y_train"] = y_train
