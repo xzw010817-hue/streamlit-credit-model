@@ -90,8 +90,8 @@ for name, clf in models.items():
     st.write(f"모델: {name}")
     fig_cm, ax_cm = plt.subplots()
     sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", ax=ax_cm)
-    ax_cm.set_xlabel("예측값")
-    ax_cm.set_ylabel("실제값")
+ax_cm.set_xlabel("Predicted Label")
+ax_cm.set_ylabel("True Label")
     st.pyplot(fig_cm)
 
 st.success("모델 평가가 완료되었습니다.")
